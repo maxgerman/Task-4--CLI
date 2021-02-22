@@ -13,20 +13,30 @@ def unique_chars(input_string: str) -> int:
     return ul
 
 
-def main():
+def parse_cli_args(args=None):
     parser = argparse.ArgumentParser(description=unique_chars.__doc__)
     parser.add_argument('-s', '--strings', nargs='+')
-    parser.add_argument('-f', '--file', type=argparse.FileType('r'))
-    p = parser.parse_args()
+    parser.add_argument('-f', '--file', nargs='+')
+    namespace = parser.parse_args(args)
+    return namespace, parser
 
 
-    if not p.file and not p.strings:
+def main(cli_args=None):
+    cli_ns, parser = parse_cli_args(cli_args)
+
+    # 'file' option has priority over the entered strings
+    if cli_ns.file:
+        with open(*cli_ns.file, 'r') as f:
+            input_strings = f.readlines()
+    else:
+        input_strings = cli_ns.strings
+
+    # if nothing is passed, print help and exit
+    if not input_strings:
         parser.print_help()
         exit()
 
-    # 'file' option has priority over the entered strings
-    input_strings = p.file.read().split() if p.file else p.strings
-
+    # print the output of the program
     for string in input_strings:
         print(unique_chars(string))
 

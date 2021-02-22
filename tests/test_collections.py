@@ -1,4 +1,5 @@
 import pytest
+from unittest import mock
 from collections_fw import unique_chars
 from collections_fw import collections_framework
 
@@ -22,8 +23,13 @@ CLI_typical_str_params = [
     (['-s', 'abc'], 3),
 ]
 
+CLI_parser_params = [
+    (['-s', 'abc'], 'strings', 'abc'),
+    (['--strings', 'abcd'], 'strings', 'abcd'),
+    (['-f', 'example.txt'], 'file', 'example.txt'),
+    (['--file', 'example2.txt'], 'file', 'example2.txt'),
+]
 
-# todo: test priority; multiline text files
 
 def test_unique_chars_typical():
     for inp_val, out_val in typical_param:
@@ -42,6 +48,7 @@ def test_lru_cache_hits():
 
 @pytest.mark.parametrize('test_input, expected', CLI_typical_str_params)
 def test_strings_from_CLI(test_input, expected, monkeypatch, capfd):
+    """tests that input is read form the CLI and the correct prints are made in response"""
     test_argv = ['progname', *test_input]
     monkeypatch.setattr('sys.argv', test_argv)
     collections_framework.main()
@@ -49,21 +56,18 @@ def test_strings_from_CLI(test_input, expected, monkeypatch, capfd):
     assert out.rstrip() == str(expected)
 
 
-#  file mocking - not working yet
-#
-# def test_file_from_CLI(monkeypatch, capfd):
-#     class Mock_TextIOWrapper:
-#         """mock _io.TextIOWrapper class"""
-#
-#         @staticmethod
-#         def read():
-#             return "mock file text"
-#
-#     def mock_read(*args, **kwargs):
-#         """ mocked return of the text file reading"""
-#         return Mock_TextIOWrapper()
-#
-#     test_argv = ['progname', '--file', 'test.txt']
-#     monkeypatch.setattr('sys.argv', test_argv)
-#     monkeypatch.setattr('collections_framework.TextIOWrapper', 'read', mock_read)
-#     collections_framework.main()
+@pytest.mark.parametrize('test_input, property, expected', CLI_parser_params)
+def test_parser(test_input, property, expected):
+    """tests that parser receives and stores CLI parameters in the appropriate properties"""
+    test_ns, parser = collections_framework.parse_cli_args(test_input)
+    assert getattr(test_ns, property)[0] == expected
+
+
+def test_parser_file(capfd):
+    """reading from a mock file, asserting correct prints"""
+    mock_file_contents = 'this is an example text file'
+    with mock.patch('collections_fw.collections_framework.open', mock.mock_open(read_data=mock_file_contents)) as m:
+        collections_framework.main(['-f', 'example.txt'])
+    # reading the prints of the main() function
+    out, err = capfd.readouterr()
+    assert out.rstrip() == str(unique_chars(mock_file_contents))
